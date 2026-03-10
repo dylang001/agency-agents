@@ -39,7 +39,7 @@
       "name": "Airtable — Poll Approved Records",
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2,
-      "position": [240, 300],
+      "position": [240, 400],
       "credentials": {
         "airtableTokenApi": {
           "id": "airtable-credential-id",
@@ -49,23 +49,26 @@
     },
     {
       "parameters": {
+        "jsCode": "// Preserve the Airtable record ID so the writeback node can update the correct record\nconst item = $input.first().json;\nreturn [{\n  json: {\n    ...item,\n    _airtableRecordId: item.id || item._airtableRecordId\n  }\n}];"
+      },
+      "id": "attach-record-id",
+      "name": "Attach Record ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 400]
+    },
+    {
+      "parameters": {
         "rules": {
           "values": [
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.Platform }}",
                     "rightValue": "Blog",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -75,19 +78,12 @@
             },
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.Platform }}",
                     "rightValue": "LinkedIn",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -97,19 +93,12 @@
             },
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.Platform }}",
                     "rightValue": "Twitter",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -119,19 +108,12 @@
             },
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.Platform }}",
                     "rightValue": "Instagram",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -141,19 +123,12 @@
             },
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.Platform }}",
                     "rightValue": "Facebook",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -163,19 +138,12 @@
             },
             {
               "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.Platform }}",
                     "rightValue": "Email",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
+                    "operator": { "type": "string", "operation": "equals" }
                   }
                 ],
                 "combinator": "and"
@@ -191,37 +159,70 @@
       "name": "Route by Platform",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [480, 300]
+      "position": [640, 400]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Blog posts are published by Framer's native Airtable sync — no API call needed.\n// This node just constructs the expected published URL from the Headline slug\n// so the writeback can record it. Framer syncs when Status = Approved.\nconst item = $input.first().json;\nconst slug = (item.Headline || '')\n  .toLowerCase()\n  .replace(/[^a-z0-9]+/g, '-')\n  .replace(/(^-|-$)/g, '');\nreturn [{\n  json: {\n    ...item,\n    _publishedUrl: `https://orchidea.digital/blog/${slug}`\n  }\n}];"
+      },
+      "id": "blog-framer-sync",
+      "name": "Blog — Framer Syncs via Airtable",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 160],
+      "notes": "No API call — Framer reads directly from this Airtable base via its native integration. This node only derives the published URL from the Headline so the writeback can record it. Ensure your Framer CMS collection is connected to the Content Queue table and set to sync when Status = Approved."
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-carousel",
+              "leftValue": "={{ $json['Content Type'] }}",
+              "rightValue": "carousel",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "linkedin-type-check",
+      "name": "LinkedIn — Is Carousel?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [780, 280]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.framer.com/store/api/v1/collections/FRAMER_COLLECTION_ID/items",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBearerAuth",
-        "sendBody": true,
-        "bodyParameters": {
+        "url": "https://api.linkedin.com/v2/assets?action=registerUpload",
+        "authentication": "oAuth2",
+        "sendHeaders": true,
+        "headerParameters": {
           "parameters": [
-            {
-              "name": "fieldData",
-              "value": "={{ { \"title\": $json.Headline, \"body\": $json.Body, \"slug\": $json.Headline.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''), \"pillarTopic\": $json[\"Pillar Topic\"], \"publishedAt\": $json[\"Scheduled Date\"] } }}"
-            }
+            { "name": "LinkedIn-Version", "value": "202401" }
           ]
         },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"registerUploadRequest\": {\n    \"recipes\": [\"urn:li:digitalmediaRecipe:feedshare-document\"],\n    \"owner\": \"urn:li:organization:LINKEDIN_ORG_ID\",\n    \"serviceRelationships\": [\n      {\n        \"relationshipType\": \"OWNER\",\n        \"identifier\": \"urn:li:userGeneratedContent\"\n      }\n    ]\n  }\n}",
         "options": {}
       },
-      "id": "framer-cms",
-      "name": "Framer CMS — Create Blog Post",
+      "id": "linkedin-carousel-upload",
+      "name": "LinkedIn — Register Carousel Upload",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 80],
+      "position": [980, 200],
       "credentials": {
-        "httpBearerAuth": {
-          "id": "framer-credential-id",
-          "name": "Framer CMS API — orchidea.digital"
+        "oAuth2Api": {
+          "id": "linkedin-credential-id",
+          "name": "LinkedIn OAuth2 — orchidea.digital"
         }
       },
-      "notes": "Replace FRAMER_COLLECTION_ID with your blog collection ID from the Framer CMS dashboard (Settings → CMS → Collections)"
+      "notes": "Step 1 of 3 for PDF carousel. Returns uploadUrl + asset URN. Step 2: PUT the PDF binary to uploadUrl. Step 3: Create ugcPost referencing the asset URN. For now, use Canva → Export as PDF → post manually until Steps 2-3 are wired in."
     },
     {
       "parameters": {
@@ -231,14 +232,8 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "LinkedIn-Version",
-              "value": "202401"
-            },
-            {
-              "name": "X-Restli-Protocol-Version",
-              "value": "2.0.0"
-            }
+            { "name": "LinkedIn-Version", "value": "202401" },
+            { "name": "X-Restli-Protocol-Version", "value": "2.0.0" }
           ]
         },
         "sendBody": true,
@@ -250,83 +245,26 @@
       "name": "LinkedIn — Publish Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 200],
+      "position": [980, 320],
       "credentials": {
         "oAuth2Api": {
           "id": "linkedin-credential-id",
           "name": "LinkedIn OAuth2 — orchidea.digital"
         }
       },
-      "notes": "Replace LINKEDIN_ORG_ID with your LinkedIn company page URN (format: 12345678). Find it at linkedin.com/company/orchidea-digital — the numeric ID in the URL. For document carousels, the Content Type field will be 'carousel' — those require a separate upload step (see linkedin-carousel-upload node)."
+      "notes": "Handles post, article, and executive_post content types. Replace LINKEDIN_ORG_ID with your numeric company page ID (find it in the URL at linkedin.com/company/orchidea-digital)."
     },
+
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "check-carousel",
-              "leftValue": "={{ $json['Content Type'] }}",
-              "rightValue": "carousel",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        }
-      },
-      "id": "linkedin-type-check",
-      "name": "LinkedIn — Is Carousel?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [580, 200]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.twitter.com/2/tweets",
-        "authentication": "oAuth2",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"text\": \"{{ $json['Content Type'] === 'thread' ? $json.Body.split('\\n')[0].replace(/^1\\/\\s*/, '') : $json.Body }}\"\n}",
-        "options": {}
-      },
-      "id": "twitter-tweet",
-      "name": "Twitter — Post Tweet",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [720, 340],
-      "credentials": {
-        "oAuth2Api": {
-          "id": "twitter-credential-id",
-          "name": "Twitter OAuth2 — orchidea.digital"
-        }
-      },
-      "notes": "For threads: the Body field contains numbered tweets (1/ ... 2/ ... 12/). The Code node before this splits them into individual tweets and posts as a reply chain. See the Twitter Thread Splitter node."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
           "conditions": [
             {
               "id": "check-thread",
               "leftValue": "={{ $json['Content Type'] }}",
               "rightValue": "thread",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
+              "operator": { "type": "string", "operation": "equals" }
             }
           ],
           "combinator": "and"
@@ -336,18 +274,41 @@
       "name": "Twitter — Is Thread?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [580, 340]
+      "position": [780, 440]
     },
     {
       "parameters": {
-        "jsCode": "// Split thread body into individual tweets\n// Body format: \"1/ tweet text\\n2/ tweet text\\n...\"\nconst body = $input.first().json.Body;\nconst lines = body.split('\\n').filter(l => l.trim());\nconst tweets = lines\n  .filter(l => /^\\d+\\//.test(l.trim()))\n  .map(l => l.replace(/^\\d+\\/\\s*/, '').trim());\n\n// Return array of tweet objects for posting as reply chain\nreturn tweets.map((text, i) => ({\n  json: {\n    ...$input.first().json,\n    _tweetText: text,\n    _tweetIndex: i,\n    _totalTweets: tweets.length\n  }\n}));"
+        "jsCode": "// Split numbered thread body into individual tweet items\n// Body format: \"1/ tweet text\\n2/ tweet text\\n...\"\nconst body = $input.first().json.Body;\nconst tweets = body\n  .split('\\n')\n  .filter(l => l.trim())\n  .filter(l => /^\\d+\\//.test(l.trim()))\n  .map(l => l.replace(/^\\d+\\/\\s*/, '').trim());\n\nreturn tweets.map((text, i) => ({\n  json: {\n    ...$input.first().json,\n    _tweetText: text,\n    _tweetIndex: i,\n    _totalTweets: tweets.length\n  }\n}));"
       },
       "id": "twitter-thread-splitter",
       "name": "Twitter — Split Thread",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 420]
+      "position": [980, 400]
     },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twitter.com/2/tweets",
+        "authentication": "oAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"text\": \"{{ $json._tweetText || $json.Body }}\" }",
+        "options": {}
+      },
+      "id": "twitter-tweet",
+      "name": "Twitter — Post Tweet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [980, 520],
+      "credentials": {
+        "oAuth2Api": {
+          "id": "twitter-credential-id",
+          "name": "Twitter OAuth2 — orchidea.digital"
+        }
+      }
+    },
+
     {
       "parameters": {
         "method": "POST",
@@ -371,18 +332,18 @@
         },
         "options": {}
       },
-      "id": "instagram-post",
+      "id": "instagram-media",
       "name": "Instagram — Create Media Object",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 500],
+      "position": [880, 580],
       "credentials": {
         "httpQueryAuth": {
           "id": "instagram-credential-id",
           "name": "Instagram Graph API — orchidea.digital"
         }
       },
-      "notes": "Replace INSTAGRAM_BUSINESS_ACCOUNT_ID with your Instagram Business Account ID. This creates the media container — the Publish node fires next. For carousels, each slide image URL must be pre-uploaded (add a media upload step before this node)."
+      "notes": "Replace INSTAGRAM_BUSINESS_ACCOUNT_ID. Creates the media container — Publish node fires next. For carousels, add a media upload step for each slide image URL before this node."
     },
     {
       "parameters": {
@@ -391,14 +352,8 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "creation_id",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "name": "access_token",
-              "value": "={{ $credentials.accessToken }}"
-            }
+            { "name": "creation_id", "value": "={{ $json.id }}" },
+            { "name": "access_token", "value": "={{ $credentials.accessToken }}" }
           ]
         },
         "options": {}
@@ -407,7 +362,7 @@
       "name": "Instagram — Publish",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [920, 500],
+      "position": [1080, 580],
       "credentials": {
         "httpQueryAuth": {
           "id": "instagram-credential-id",
@@ -415,6 +370,7 @@
         }
       }
     },
+
     {
       "parameters": {
         "method": "POST",
@@ -424,12 +380,9 @@
           "parameters": [
             {
               "name": "message",
-              "value": "={{ $json.Body }}\\n\\n{{ $json.Hashtags }}"
+              "value": "={{ $json.Body + ($json.Hashtags ? '\\n\\n' + $json.Hashtags : '') }}"
             },
-            {
-              "name": "access_token",
-              "value": "={{ $credentials.accessToken }}"
-            }
+            { "name": "access_token", "value": "={{ $credentials.accessToken }}" }
           ]
         },
         "options": {}
@@ -438,57 +391,50 @@
       "name": "Facebook — Publish Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 620],
+      "position": [880, 680],
       "credentials": {
         "httpQueryAuth": {
           "id": "facebook-credential-id",
           "name": "Facebook Pages API — orchidea.digital"
         }
       },
-      "notes": "Replace FACEBOOK_PAGE_ID with your Facebook Page ID. Find it at facebook.com/orchidea.digital → About → Page ID."
+      "notes": "Replace FACEBOOK_PAGE_ID. Find it at facebook.com/orchidea.digital → About → Page ID."
     },
+
     {
       "parameters": {
         "method": "POST",
         "url": "https://api.convertkit.com/v3/broadcasts",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"api_secret\": \"{{ $credentials.apiSecret }}\",\n  \"subject\": \"{{ $json.Body.match(/SUBJECT:\\s*([^\\n]+)/i)?.[1]?.trim() || $json.Headline }}\",\n  \"content\": \"{{ $json.Body.replace(/SUBJECT:[^\\n]+\\n?/i, '').replace(/PREVIEW TEXT:[^\\n]+\\n?/i, '').replace(/---\\n?/, '').trim() }}\",\n  \"description\": \"orchidea.digital weekly newsletter — Cycle automated by content engine\",\n  \"public\": false,\n  \"published_at\": \"{{ $json['Scheduled Date'] }}T08:00:00-05:00\",\n  \"email_address\": {\n    \"from_name\": \"Dylan from orchidea.digital\",\n    \"reply_to\": \"dylan@orchidea.digital\"\n  }\n}",
+        "jsonBody": "={\n  \"api_secret\": \"{{ $credentials.apiSecret }}\",\n  \"subject\": \"{{ $json.Body.match(/SUBJECT:\\s*([^\\n]+)/i)?.[1]?.trim() || $json.Headline }}\",\n  \"content\": \"{{ $json.Body.replace(/SUBJECT:[^\\n]+\\n?/i, '').replace(/PREVIEW TEXT:[^\\n]+\\n?/i, '').replace(/---\\n?/, '').trim() }}\",\n  \"description\": \"orchidea.digital weekly newsletter — content engine\",\n  \"public\": false,\n  \"published_at\": \"{{ $json['Scheduled Date'] }}T08:00:00-05:00\",\n  \"email_address\": {\n    \"from_name\": \"Dylan from orchidea.digital\",\n    \"reply_to\": \"dylan@orchidea.digital\"\n  }\n}",
         "options": {}
       },
       "id": "convertkit-broadcast",
       "name": "ConvertKit — Create Broadcast",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 740],
+      "position": [880, 780],
       "credentials": {
         "httpQueryAuth": {
           "id": "convertkit-credential-id",
           "name": "ConvertKit API — orchidea.digital"
         }
       },
-      "notes": "Creates the broadcast as a draft (public: false). To auto-send instead of draft, set published_at to now and public: true. ConvertKit API secret lives in your ConvertKit account settings."
+      "notes": "Creates broadcast as draft (public: false) so you can preview before first automated send. Flip to public: true once confirmed formatting is correct."
     },
+
     {
       "parameters": {
-        "jsCode": "// Merge all upstream branch results back into one stream\n// Each branch passes its result with a publishedUrl field\nconst item = $input.first().json;\nreturn [{ json: item }];"
-      },
-      "id": "merge-results",
-      "name": "Merge Results",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1120, 420]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Extract published URL from upstream API response\n// Each platform returns differently — normalize here\nconst item = $input.first().json;\nlet publishedUrl = '';\n\n// Blog (Framer) — returns item with slug\nif (item._platform === 'Blog' || item.slug) {\n  publishedUrl = `https://orchidea.digital/blog/${item.slug || ''}`;\n}\n// LinkedIn — returns id as urn:li:share:...\nelse if (item.id && item.id.startsWith('urn:li:')) {\n  const postId = item.id.replace('urn:li:share:', '').replace('urn:li:ugcPost:', '');\n  publishedUrl = `https://www.linkedin.com/feed/update/${item.id}`;\n}\n// Twitter — returns data.id\nelse if (item.data && item.data.id) {\n  publishedUrl = `https://twitter.com/orchideadigital/status/${item.data.id}`;\n}\n// Instagram — returns id\nelse if (item.id && !item.id.startsWith('urn:')) {\n  publishedUrl = `https://www.instagram.com/p/${item.id}`;\n}\n// Facebook — returns id as pageId_postId\nelse if (item.id && item.id.includes('_')) {\n  publishedUrl = `https://www.facebook.com/${item.id}`;\n}\n// ConvertKit — returns broadcast with id\nelse if (item.broadcast && item.broadcast.id) {\n  publishedUrl = `https://app.convertkit.com/broadcasts/${item.broadcast.id}`;\n}\n\nreturn [{ json: { ...item, _publishedUrl: publishedUrl } }];"
+        "jsCode": "// Normalize the published URL from each platform's API response\nconst item = $input.first().json;\nlet publishedUrl = item._publishedUrl || '';\n\nif (!publishedUrl) {\n  // LinkedIn ugcPost — returns id as urn:li:ugcPost:...\n  if (item.id && typeof item.id === 'string' && item.id.startsWith('urn:li:')) {\n    publishedUrl = `https://www.linkedin.com/feed/update/${item.id}`;\n  }\n  // Twitter — returns data.id\n  else if (item.data && item.data.id) {\n    publishedUrl = `https://twitter.com/orchideadigital/status/${item.data.id}`;\n  }\n  // Instagram media_publish — returns id (media ID, not permalink)\n  else if (item.id && typeof item.id === 'string' && !item.id.includes('_') && !item.id.startsWith('urn:')) {\n    publishedUrl = `https://www.instagram.com/p/${item.id}`;\n  }\n  // Facebook feed post — returns id as pageId_postId\n  else if (item.id && typeof item.id === 'string' && item.id.includes('_')) {\n    publishedUrl = `https://www.facebook.com/permalink.php?story_fbid=${item.id.split('_')[1]}&id=${item.id.split('_')[0]}`;\n  }\n  // ConvertKit — returns { broadcast: { id, ... } }\n  else if (item.broadcast && item.broadcast.id) {\n    publishedUrl = `https://app.convertkit.com/broadcasts/${item.broadcast.id}`;\n  }\n  // LinkedIn carousel upload — step 1 returns asset URN, not a live URL yet\n  else if (item.value && item.value.asset) {\n    publishedUrl = `linkedin-asset:${item.value.asset}`;\n  }\n}\n\nreturn [{ json: { ...item, _publishedUrl: publishedUrl } }];"
       },
       "id": "extract-url",
       "name": "Extract Published URL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 420]
+      "position": [1200, 480]
     },
+
     {
       "parameters": {
         "operation": "update",
@@ -505,14 +451,8 @@
         "id": "={{ $json['_airtableRecordId'] }}",
         "fieldsUi": {
           "fieldValues": [
-            {
-              "fieldId": "Status",
-              "fieldValue": "Published"
-            },
-            {
-              "fieldId": "Published URL",
-              "fieldValue": "={{ $json._publishedUrl }}"
-            }
+            { "fieldId": "Status", "fieldValue": "Published" },
+            { "fieldId": "Published URL", "fieldValue": "={{ $json._publishedUrl }}" }
           ]
         }
       },
@@ -520,274 +460,77 @@
       "name": "Airtable — Mark Published",
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2,
-      "position": [1280, 420],
+      "position": [1400, 480],
       "credentials": {
         "airtableTokenApi": {
           "id": "airtable-credential-id",
           "name": "Airtable — orchidea.digital"
         }
       }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Attach Airtable record ID to item so writeback node can find the record\n// Airtable trigger returns 'id' as the record ID\nconst item = $input.first().json;\nreturn [{\n  json: {\n    ...item,\n    _airtableRecordId: item.id || item._airtableRecordId\n  }\n}];"
-      },
-      "id": "attach-record-id",
-      "name": "Attach Record ID",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [360, 300],
-      "notes": "Preserves the Airtable record ID through the pipeline so the writeback node can update the correct record after publishing"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.linkedin.com/v2/assets?action=registerUpload",
-        "authentication": "oAuth2",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "LinkedIn-Version",
-              "value": "202401"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"registerUploadRequest\": {\n    \"recipes\": [\"urn:li:digitalmediaRecipe:feedshare-document\"],\n    \"owner\": \"urn:li:organization:LINKEDIN_ORG_ID\",\n    \"serviceRelationships\": [\n      {\n        \"relationshipType\": \"OWNER\",\n        \"identifier\": \"urn:li:userGeneratedContent\"\n      }\n    ]\n  }\n}",
-        "options": {}
-      },
-      "id": "linkedin-carousel-upload",
-      "name": "LinkedIn — Register Carousel Upload",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [720, 160],
-      "credentials": {
-        "oAuth2Api": {
-          "id": "linkedin-credential-id",
-          "name": "LinkedIn OAuth2 — orchidea.digital"
-        }
-      },
-      "notes": "Step 1 of 3 for carousel upload. Step 2: PUT the PDF binary to the uploadUrl returned here. Step 3: Create ugcPost with the asset URN. For Cycle 1, use a PDF generated from the slide copy — Canva exports to PDF natively."
     }
   ],
+
   "connections": {
     "Airtable — Poll Approved Records": {
-      "main": [
-        [
-          {
-            "node": "Attach Record ID",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Attach Record ID", "type": "main", "index": 0 }]]
     },
     "Attach Record ID": {
-      "main": [
-        [
-          {
-            "node": "Route by Platform",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Route by Platform", "type": "main", "index": 0 }]]
     },
     "Route by Platform": {
       "main": [
-        [
-          {
-            "node": "Framer CMS — Create Blog Post",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "LinkedIn — Is Carousel?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Twitter — Is Thread?",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Instagram — Create Media Object",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Facebook — Publish Post",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "ConvertKit — Create Broadcast",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Blog — Framer Syncs via Airtable", "type": "main", "index": 0 }],
+        [{ "node": "LinkedIn — Is Carousel?", "type": "main", "index": 0 }],
+        [{ "node": "Twitter — Is Thread?", "type": "main", "index": 0 }],
+        [{ "node": "Instagram — Create Media Object", "type": "main", "index": 0 }],
+        [{ "node": "Facebook — Publish Post", "type": "main", "index": 0 }],
+        [{ "node": "ConvertKit — Create Broadcast", "type": "main", "index": 0 }]
       ]
+    },
+    "Blog — Framer Syncs via Airtable": {
+      "main": [[{ "node": "Extract Published URL", "type": "main", "index": 0 }]]
     },
     "LinkedIn — Is Carousel?": {
       "main": [
-        [
-          {
-            "node": "LinkedIn — Register Carousel Upload",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "LinkedIn — Publish Post",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Twitter — Is Thread?": {
-      "main": [
-        [
-          {
-            "node": "Twitter — Split Thread",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Twitter — Post Tweet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Instagram — Create Media Object": {
-      "main": [
-        [
-          {
-            "node": "Instagram — Publish",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Instagram — Publish": {
-      "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Framer CMS — Create Blog Post": {
-      "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "LinkedIn — Publish Post": {
-      "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "LinkedIn — Register Carousel Upload", "type": "main", "index": 0 }],
+        [{ "node": "LinkedIn — Publish Post", "type": "main", "index": 0 }]
       ]
     },
     "LinkedIn — Register Carousel Upload": {
-      "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Extract Published URL", "type": "main", "index": 0 }]]
     },
-    "Twitter — Post Tweet": {
+    "LinkedIn — Publish Post": {
+      "main": [[{ "node": "Extract Published URL", "type": "main", "index": 0 }]]
+    },
+    "Twitter — Is Thread?": {
       "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Twitter — Split Thread", "type": "main", "index": 0 }],
+        [{ "node": "Twitter — Post Tweet", "type": "main", "index": 0 }]
       ]
     },
     "Twitter — Split Thread": {
-      "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Twitter — Post Tweet", "type": "main", "index": 0 }]]
+    },
+    "Twitter — Post Tweet": {
+      "main": [[{ "node": "Extract Published URL", "type": "main", "index": 0 }]]
+    },
+    "Instagram — Create Media Object": {
+      "main": [[{ "node": "Instagram — Publish", "type": "main", "index": 0 }]]
+    },
+    "Instagram — Publish": {
+      "main": [[{ "node": "Extract Published URL", "type": "main", "index": 0 }]]
     },
     "Facebook — Publish Post": {
-      "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Extract Published URL", "type": "main", "index": 0 }]]
     },
     "ConvertKit — Create Broadcast": {
-      "main": [
-        [
-          {
-            "node": "Extract Published URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Extract Published URL", "type": "main", "index": 0 }]]
     },
     "Extract Published URL": {
-      "main": [
-        [
-          {
-            "node": "Airtable — Mark Published",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Airtable — Mark Published", "type": "main", "index": 0 }]]
     }
   },
+
   "pinData": {},
   "settings": {
     "executionOrder": "v1",
@@ -806,5 +549,5 @@
   ],
   "triggerCount": 0,
   "updatedAt": "2026-03-10T00:00:00.000Z",
-  "versionId": "1"
+  "versionId": "2"
 }
