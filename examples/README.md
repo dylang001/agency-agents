@@ -39,6 +39,34 @@ These examples answer the question: *"What does it actually look like when the f
 
 **Key takeaway:** All 8 agents ran in parallel and produced coherent, cross-referencing plans without coordination overhead. The output demonstrates the agency's ability to go from "find an opportunity" to "here's the full blueprint" in a single session.
 
+### [workflow-content-engine.md](./workflow-content-engine.md)
+
+**What:** A repeatable weekly multi-platform content production pipeline using 8 marketing agents.
+
+**The scenario:** A B2B SaaS brand needs a sustainable content engine — from keyword research to cross-platform publishing to analytics-driven iteration. The full cycle runs in about a week and gets smarter every cycle.
+
+**Agents used:**
+| Agent | Role |
+|-------|------|
+| SEO Specialist | Keyword research, topic validation, on-page optimization |
+| Growth Hacker | Audience intelligence, distribution analysis, end-of-cycle analytics |
+| Content Creator | Editorial calendar, long-form pillar content |
+| Twitter Engager | Thread and standalone tweet packages |
+| Instagram Curator | Carousel and Reel concepts |
+| TikTok Strategist | Short-form video scripts and hooks |
+| Reddit Community Builder | Community distribution and engagement |
+| Social Media Strategist | Cross-platform publishing calendar |
+
+**Key takeaway:** Research runs in parallel, platform adaptation runs in parallel, and the analytics review at the end feeds directly back into the next cycle — compounding the engine's effectiveness over time.
+
+**For ongoing weekly operation** with self-optimization and human approval gates, use `marketing-content-engine-weekly-runner.md` with the `content-engine-state.md` config file. The runner reads last week's performance, generates an optimized plan for user review, executes on approval, and writes results back to state — closing the loop automatically each week.
+
+### [content-engine-state.md](./content-engine-state.md)
+
+**What:** The persistent state file for the content engine. Stores brand config, performance benchmarks, weekly cycle logs, cumulative learnings, and approval history.
+
+**How to use:** Copy this file into your project root, fill in Brand Configuration and Benchmarks, then reference it in every Content Engine Weekly Runner activation. The runner appends to it automatically each cycle — you never lose your optimization history.
+
 ## Adding New Examples
 
 If you run an interesting multi-agent exercise, consider adding it here. Good examples show:
