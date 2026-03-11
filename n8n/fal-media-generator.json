@@ -3,15 +3,63 @@
   "nodes": [
     {
       "id": "11111111-1111-4111-8111-111111111111",
-      "name": "Airtable Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
       "position": [240, 300],
       "parameters": {
-        "httpMethod": "POST",
-        "path": "fal-media-generator",
-        "responseMode": "onReceived",
-        "options": {}
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "name": "Fetch Approved Records",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [440, 300],
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "={{ $env.AIRTABLE_BASE_ID }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Content Queue",
+          "mode": "name"
+        },
+        "filterByFormula": "AND({Status} = 'Approved', {ImageUrl} = '')",
+        "options": {
+          "fields": [
+            "Platform",
+            "Content Type",
+            "Headline",
+            "Body",
+            "Hashtags",
+            "Media Notes",
+            "CTA",
+            "Pillar Topic",
+            "Content ID"
+          ]
+        }
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtable-credential-id",
+          "name": "Airtable — orchidea.digital"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "name": "Map Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const d = $input.item.json;\nreturn {\n  recordId: d.id,\n  table: 'Content Queue',\n  platform: (d['Platform'] || '').toLowerCase(),\n  contentType: (d['Content Type'] || '').toLowerCase(),\n  title: d['Headline'] || '',\n  body: d['Body'] || '',\n  hashtags: d['Hashtags'] || '',\n  mediaNotes: d['Media Notes'] || '',\n  cta: d['CTA'] || '',\n  thumbnailConcept: d['Media Notes'] || d['Headline'] || '',\n  visualDirection: d['Media Notes'] || '',\n  hook: d['Headline'] || '',\n  postType: d['Content Type'] || '',\n  targetKeyword: d['Pillar Topic'] || '',\n  campaignType: d['Content Type'] || '',\n};"
       }
     },
     {
@@ -19,7 +67,7 @@
       "name": "Build Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 300],
+      "position": [920, 300],
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "const d = $input.item.json;\nconst platform = (d.platform || '').toLowerCase();\nconst contentType = (d.contentType || '').toLowerCase();\nconst isVideo =\n  (platform === 'instagram' && contentType.includes('reel')) ||\n  (platform === 'youtube' && contentType.includes('video'));\n\nconst DIMS = {\n  youtube:   { width: 1280, height: 720 },\n  instagram: { width: 1080, height: 1080 },\n  linkedin:  { width: 1200, height: 628 },\n  twitter:   { width: 1200, height: 675 },\n  email:     { width: 600,  height: 338 },\n  seo:       { width: 1200, height: 630 },\n};\nconst dims = DIMS[platform] || DIMS.seo;\n\nlet prompt = '';\nif (platform === 'youtube') {\n  prompt = `${d.thumbnailConcept || d.title}. Bold YouTube thumbnail style, high contrast, cinematic lighting, professional photography, 16:9 composition, attention-grabbing modern design. No rendered text in image.`;\n} else if (platform === 'instagram' && isVideo) {\n  prompt = `${d.visualDirection || d.body?.slice(0, 200) || d.title}. Smooth cinematic short video, lifestyle motion, natural fluid movement, high production quality, modern social video aesthetic, 9:16 vertical format.`;\n} else if (platform === 'instagram') {\n  prompt = `${d.visualDirection || ''}. ${d.body?.slice(0, 150) || ''}. Instagram editorial photography, lifestyle aesthetic, natural lighting, aspirational composition, warm color grading, square format.`;\n} else if (platform === 'linkedin') {\n  prompt = `${d.hook || d.title}. Professional ${d.postType || 'post'} visual for LinkedIn, corporate yet modern, clean minimal design, business context, neutral background, editorial photography style.`;\n} else if (platform === 'twitter') {\n  prompt = `${d.title}. ${d.body?.slice(0, 150) || ''}. Editorial news-style image, journalistic photography aesthetic, clean composition, high contrast, modern digital media style.`;\n} else if (platform === 'email') {\n  prompt = `${d.title}. Clean email marketing header for ${d.campaignType || 'campaign'}, professional lifestyle photography, wide letterbox composition, high-end aesthetic.`;\n} else {\n  prompt = `${d.targetKeyword || d.title}. ${d.title}. Editorial hero image for article, authoritative journalism photography style, clean wide composition, informational and trustworthy aesthetic.`;\n}\n\nconst MODEL_IMAGE = 'fal-ai/flux-pro/v1.1-ultra';\nconst MODEL_VIDEO = 'fal-ai/kling-video/v1.6/pro/text-to-video';\n\nreturn {\n  ...d,\n  prompt,\n  isVideo,\n  dims,\n  model: isVideo ? MODEL_VIDEO : MODEL_IMAGE,\n  falImageUrl: `https://fal.run/${MODEL_IMAGE}`,\n  falVideoUrl: `https://fal.run/${MODEL_VIDEO}`,\n  falVideoQueueBase: `https://queue.fal.run/${MODEL_VIDEO}/requests`,\n};"
@@ -30,7 +78,7 @@
       "name": "Image or Video",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 300],
+      "position": [1160, 300],
       "parameters": {
         "conditions": {
           "options": {
@@ -58,7 +106,7 @@
       "name": "FAL Generate Image",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 160],
+      "position": [1400, 160],
       "parameters": {
         "method": "POST",
         "url": "={{ $json.falImageUrl }}",
@@ -86,7 +134,7 @@
       "name": "Extract Image URL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 160],
+      "position": [1640, 160],
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "const imageUrl = $input.item.json.images?.[0]?.url;\nif (!imageUrl) throw new Error('FAL Flux returned no image URL. Response: ' + JSON.stringify($input.item.json));\nconst source = $('Build Prompt').item.json;\nreturn { ...source, generatedUrl: imageUrl };"
@@ -97,7 +145,7 @@
       "name": "FAL Generate Video",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 440],
+      "position": [1400, 440],
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "const d = $input.item.json;\nconst falKey = $env.FAL_KEY;\nif (!falKey) throw new Error('FAL_KEY environment variable not set');\n\n// Submit video job\nconst submitRes = await fetch(d.falVideoUrl, {\n  method: 'POST',\n  headers: {\n    'Authorization': `Key ${falKey}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    prompt: d.prompt,\n    duration: '5',\n    aspect_ratio: '9:16',\n    negative_prompt: 'blur, distortion, watermark, text overlay, low quality, pixelated',\n  }),\n});\nif (!submitRes.ok) {\n  const body = await submitRes.text();\n  throw new Error(`FAL video submit failed [${submitRes.status}]: ${body}`);\n}\nconst { request_id } = await submitRes.json();\nif (!request_id) throw new Error('FAL did not return a request_id');\n\n// Poll until complete (max 60 × 10s = 10 min)\nconst queueBase = d.falVideoQueueBase;\nlet videoUrl = null;\nfor (let i = 0; i < 60; i++) {\n  await new Promise(r => setTimeout(r, 10000));\n  const statusRes = await fetch(`${queueBase}/${request_id}/status`, {\n    headers: { 'Authorization': `Key ${falKey}` },\n  });\n  if (!statusRes.ok) continue;\n  const { status } = await statusRes.json();\n  if (status === 'COMPLETED') {\n    const resultRes = await fetch(`${queueBase}/${request_id}`, {\n      headers: { 'Authorization': `Key ${falKey}` },\n    });\n    const result = await resultRes.json();\n    videoUrl = result.video?.url;\n    break;\n  } else if (status === 'FAILED') {\n    throw new Error(`Kling video generation FAILED for record ${d.recordId}`);\n  }\n}\nif (!videoUrl) throw new Error(`FAL video timed out after 10 minutes for record ${d.recordId}`);\n\nreturn { ...d, generatedUrl: videoUrl };"
@@ -108,7 +156,7 @@
       "name": "Airtable Update Success",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 300],
+      "position": [1880, 300],
       "parameters": {
         "method": "PATCH",
         "url": "=https://api.airtable.com/v0/{{ $env.AIRTABLE_BASE_ID }}/{{ encodeURIComponent($json.table) }}/{{ $json.recordId }}",
@@ -147,7 +195,7 @@
       "position": [480, 580],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Pull original webhook data out of the failed execution\nconst runData = $json.execution?.data?.resultData?.runData;\nconst webhookRuns = runData?.['Airtable Webhook'];\nconst originalPayload = webhookRuns?.[0]?.data?.main?.[0]?.[0]?.json || {};\nconst failedNode = $json.execution?.lastNodeExecuted || 'Unknown node';\nconst errorMsg = $json.error?.message || 'Unknown error';\n\nreturn {\n  recordId: originalPayload.recordId || null,\n  table: originalPayload.table || null,\n  errorMessage: `${failedNode}: ${errorMsg}`,\n};"
+        "jsCode": "// Pull original record data out of the failed execution\nconst runData = $json.execution?.data?.resultData?.runData;\nconst mapRuns = runData?.['Map Fields'];\nconst originalPayload = mapRuns?.[0]?.data?.main?.[0]?.[0]?.json || {};\nconst failedNode = $json.execution?.lastNodeExecuted || 'Unknown node';\nconst errorMsg = $json.error?.message || 'Unknown error';\n\nreturn {\n  recordId: originalPayload.recordId || null,\n  table: originalPayload.table || null,\n  errorMessage: `${failedNode}: ${errorMsg}`,\n};"
       }
     },
     {
@@ -180,7 +228,21 @@
     }
   ],
   "connections": {
-    "Airtable Webhook": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          { "node": "Fetch Approved Records", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch Approved Records": {
+      "main": [
+        [
+          { "node": "Map Fields", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Map Fields": {
       "main": [
         [
           { "node": "Build Prompt", "type": "main", "index": 0 }
