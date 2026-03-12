@@ -1,0 +1,5 @@
+# Claude Code runtime data
+.claude/
+
+# Docker local env (contains API keys)
+docker/.env
