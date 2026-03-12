@@ -1,0 +1,5 @@
+.git
+.claude
+integrations
+node_modules
+*.log

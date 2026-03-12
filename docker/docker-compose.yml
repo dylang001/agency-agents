@@ -1,0 +1,14 @@
+services:
+  claude:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: agency-agents-claude
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY in docker/.env}
+    volumes:
+      - ${WORKSPACE_PATH:-..}:/workspace
+      - ./settings.json:/root/.claude/settings.json
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
