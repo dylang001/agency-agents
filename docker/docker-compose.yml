@@ -1,0 +1,16 @@
+services:
+  claude:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: agency-agents:latest
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      # Mount your local working directory into the container
+      - ${WORKSPACE_PATH:-.}:/workspace
+      # Override MCP / settings without rebuilding the image
+      - ./settings.json:/root/.claude/settings.json:ro
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
