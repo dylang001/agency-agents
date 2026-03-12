@@ -1,0 +1,161 @@
+{
+  "name": "Stage to Content Queue",
+  "nodes": [
+    {
+      "id": "schedule-trigger",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+        }
+      }
+    },
+    {
+      "id": "fetch-ready-records",
+      "name": "Fetch Ready To Queue Records",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Poll all per-channel tables for Status = 'Ready To Queue' with no linked Content Queue record.\n// COUNTA({Content Calendar}) = 0 prevents double-processing without needing a 'Queued' status.\n\nconst BASE_ID = $env.AIRTABLE_BASE_ID;\nconst API_KEY = $env.AIRTABLE_API_KEY;\n\nconst TABLES = [\n  { id: 'tbl0w082lUb6OcwwQ', name: 'LinkedIn Posts',    platform: 'LinkedIn'  },\n  { id: 'tblO58c8jXi1Ahipn', name: 'Twitter Posts',     platform: 'Twitter'   },\n  { id: 'tblYwb4BkHg7rGshQ', name: 'Instagram Content', platform: 'Instagram' },\n  { id: 'tbl0PY35chjkvynO1', name: 'SEO Articles',      platform: 'Blog'      },\n  { id: 'tblExlqtrAup18AOd', name: 'Email Campaigns',   platform: 'Email'     }\n];\n\nconst headers = {\n  'Authorization': `Bearer ${API_KEY}`,\n  'Content-Type': 'application/json'\n};\n\nconst allItems = [];\n\nfor (const table of TABLES) {\n  const filter = `AND({Status} = 'Ready To Queue', COUNTA({Content Calendar}) = 0)`;\n  const url = `https://api.airtable.com/v0/${BASE_ID}/${table.id}` +\n    `?filterByFormula=${encodeURIComponent(filter)}` +\n    `&fields[]=Title&fields[]=Body&fields[]=Hashtags&fields[]=CTA` +\n    `&fields[]=ImageUrl&fields[]=ContentType&fields[]=Hook` +\n    `&fields[]=TargetKeyword&fields[]=PreviewText`;\n\n  const response = await $http.request({ method: 'GET', url, headers });\n  const records = response.records || [];\n\n  for (const record of records) {\n    allItems.push({\n      json: {\n        sourceTableId:   table.id,\n        sourceTableName: table.name,\n        sourceRecordId:  record.id,\n        platform:        table.platform,\n        fields:          record.fields\n      }\n    });\n  }\n}\n\nreturn allItems;"
+      }
+    },
+    {
+      "id": "any-records",
+      "name": "Any Records?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-records",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "map-to-queue",
+      "name": "Map to Content Queue Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, -60],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const { platform, fields, sourceTableId, sourceRecordId } = $input.item.json;\n\nconst headline = fields.Title || '';\n\nconst rawType = (fields.ContentType || '').toLowerCase().trim();\nconst TYPE_MAP = {\n  'carousel':       'carousel',\n  'article':        'article',\n  'post':           'post',\n  'thread':         'thread',\n  'reel':           'reel',\n  'story':          'story',\n  'email':          'email',\n  'blog_post':      'blog_post',\n  'blog post':      'blog_post',\n  'executive_post': 'executive_post',\n  'executive post': 'executive_post'\n};\nconst contentType = TYPE_MAP[rawType] || 'post';\n\nconst mediaNotes = [fields.Hook, fields.VisualDirection].filter(Boolean).join('\\n\\n') || '';\n\nreturn {\n  json: {\n    Headline:         headline,\n    Body:             fields.Body || '',\n    Hashtags:         fields.Hashtags || '',\n    CTA:              fields.CTA || '',\n    ImageUrl:         fields.ImageUrl || '',\n    'Media Notes':    mediaNotes,\n    Platform:         platform,\n    'Content Type':   contentType,\n    Status:           'Pending Review',\n    'Pillar Topic':   fields.TargetKeyword || '',\n    _sourceTableId:   sourceTableId,\n    _sourceRecordId:  sourceRecordId\n  }\n};"
+      }
+    },
+    {
+      "id": "create-queue-record",
+      "name": "Create Content Queue Record",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [880, -60],
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "={{ $env.AIRTABLE_BASE_ID }}",
+          "mode": "id"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Content Queue",
+          "mode": "name"
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "Headline",      "fieldValue": "={{ $json.Headline }}" },
+            { "fieldId": "Body",          "fieldValue": "={{ $json.Body }}" },
+            { "fieldId": "Hashtags",      "fieldValue": "={{ $json.Hashtags }}" },
+            { "fieldId": "CTA",           "fieldValue": "={{ $json.CTA }}" },
+            { "fieldId": "ImageUrl",      "fieldValue": "={{ $json.ImageUrl }}" },
+            { "fieldId": "Media Notes",   "fieldValue": "={{ $json['Media Notes'] }}" },
+            { "fieldId": "Platform",      "fieldValue": "={{ $json.Platform }}" },
+            { "fieldId": "Content Type",  "fieldValue": "={{ $json['Content Type'] }}" },
+            { "fieldId": "Status",        "fieldValue": "={{ $json.Status }}" },
+            { "fieldId": "Pillar Topic",  "fieldValue": "={{ $json['Pillar Topic'] }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "link-source-record",
+      "name": "Link Source Record to Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1100, -60],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.airtable.com/v0/{{ $env.AIRTABLE_BASE_ID }}/{{ $json._sourceTableId }}/{{ $json._sourceRecordId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { 'Content Calendar': [{ id: $json.id }] } }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [660, 120],
+      "parameters": {}
+    },
+    {
+      "id": "log-error",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 120],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "console.error('[Stage to Queue] Error:', JSON.stringify($input.item.json, null, 2));\nreturn $input.item;"
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [[{ "node": "Fetch Ready To Queue Records", "type": "main", "index": 0 }]]
+    },
+    "Fetch Ready To Queue Records": {
+      "main": [[{ "node": "Any Records?", "type": "main", "index": 0 }]]
+    },
+    "Any Records?": {
+      "main": [
+        [{ "node": "Map to Content Queue Fields", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Map to Content Queue Fields": {
+      "main": [[{ "node": "Create Content Queue Record", "type": "main", "index": 0 }]]
+    },
+    "Create Content Queue Record": {
+      "main": [[{ "node": "Link Source Record to Queue", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger": {
+      "main": [[{ "node": "Log Error", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
