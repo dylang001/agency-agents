@@ -1,7 +1,9 @@
 FROM node:22-slim
 
-# Install Claude Code and the filesystem MCP server
-RUN npm install -g @anthropic-ai/claude-code @modelcontextprotocol/server-filesystem
+# Install Claude Code and MCP servers
+RUN npm install -g @anthropic-ai/claude-code \
+    @modelcontextprotocol/server-filesystem \
+    airtable-mcp-server
 
 # Copy repo to bake agents into the image
 WORKDIR /app

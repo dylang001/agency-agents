@@ -6,9 +6,14 @@ services:
     image: agency-agents-claude
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY in docker/.env}
+      - AIRTABLE_API_KEY=${AIRTABLE_API_KEY:-}
+      - N8N_PORT=${N8N_PORT:-5678}
+      - N8N_API_TOKEN=${N8N_API_TOKEN:-}
     volumes:
       - ${WORKSPACE_PATH:-..}:/workspace
       - ./settings.json:/root/.claude/settings.json
     stdin_open: true
     tty: true
     working_dir: /workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

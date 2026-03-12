@@ -3,6 +3,25 @@
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+    },
+    "airtable": {
+      "type": "stdio",
+      "command": "airtable-mcp-server",
+      "env": {
+        "AIRTABLE_API_KEY": "${AIRTABLE_API_KEY}"
+      }
+    },
+    "n8n-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "supergateway",
+        "--streamableHttp",
+        "http://host.docker.internal:${N8N_PORT:-5678}/mcp-server/http",
+        "--header",
+        "authorization:Bearer ${N8N_API_TOKEN}"
+      ]
     }
   }
 }
